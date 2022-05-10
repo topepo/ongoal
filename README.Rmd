@@ -1,0 +1,52 @@
+---
+output: github_document
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
+
+# ongoal
+
+<!-- badges: start -->
+[![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
+[![CRAN status](https://www.r-pkg.org/badges/version/ongoal)](https://CRAN.R-project.org/package=ongoal)
+<!-- badges: end -->
+
+```{r load, include = FALSE}
+library(ongoal)
+```
+
+ongoal makes `r nrow(on_goal)` data points available for Pittsburgh Penguins games where the it was determined whether a shot was on goal (i.e., made it to the goaltender) or not (i.e., missed or blocked). Data are from seasons 2015-2016, 2016-2017, and 2017-2018. 
+
+Several other columns were recorded related to the game, player, and shot. The data are not perfect; the determination of power play duration were manually calculated and may not be completely accurate.  
+
+## Installation
+
+You can install the development version of ongoal:
+
+``` r
+require(pak)
+pak::pak("topepo/ongoal")
+```
+
+## Example
+
+This is a basic example which shows you how to solve a common problem:
+
+```{r example}
+library(ongoal)
+str(on_goal)
+```
+
+## Code of Conduct
+  
+Please note that the ongoal project is released with a [Contributor Code of Conduct](https://contributor-covenant.org/version/2/0/CODE_OF_CONDUCT.html). By contributing to this project, you agree to abide by its terms.
+  
