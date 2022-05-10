@@ -31,7 +31,7 @@ pak::pak("topepo/ongoal")
 
 ## Example
 
-This is a basic example which shows you how to solve a common problem:
+Here’s a look at the data:
 
 ``` r
 library(ongoal)
