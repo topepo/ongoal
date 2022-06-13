@@ -2,9 +2,9 @@ Package: ongoal
 Title: NHL Data for Shots on Goal
 Version: 0.0.1
 Authors@R: c(
-    person("Max", "Kuhn", , "max@rstudio.com", role = c("cre", "aut"),
+    person("Max", "Kuhn", , "mxkuhn@gmail.com", role = c("cre", "aut"),
            comment = c(ORCID = "0000-0003-2402-136X")),
-    person("RStudio", role = "cph")
+    person("Bill", "Tran", , "bttran@ualberta.ca", role = c("aut"))   
   )
 Description: Data for several Pittsburgh Penguins seasons on whether a
     shots was on goal or not.
