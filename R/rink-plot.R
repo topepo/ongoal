@@ -1,44 +1,91 @@
 
-# original from https://raw.githubusercontent.com/mrbilltran/the-win-column/master/nhl_rink_plot.R
 #' Plot a hockey rink and add data
-#' @param a data frame of data (should include a column called `on_goal`).
-#' @param group A factor column to color and shape the data points.
-#' @param symbols A named vector of symbol numbers for the plot (or NULL).
-#' @return A ggplot object
+#' @param x data frame of data (should include a columns called `coord_x` and
+#' `coord_y`).
+#' @param emphasis A column in `x` to color (and shape if factor) the data points.
+#' If this argument is used, it must be named and cannot use in-line functions
+#' (e.g. `emphasis = log(distance)`).
+#' @param ... Options to pass to [ggplot2::geom_point()]. If `emphasis` is a
+#' string or factor, the `col` and `pch` aesthetics are already set and if
+#' `emphasis` is numeric, only `col` is set.
+#' @return A ggplot object.
+#' @details
+#' [nhl_rink_plot()] plots most elements of the rink. Code to plot all can be
+#' found in the GitHub link in the References.
+#'
+#' [plot_nhl_shots()] overlays the rink plot with points in `x`. If `emphasis` is
+#' given and is factor or character, the color and shape of the points are set.
+#' Otherwise, only the color is set. This function also sets the rink colors to
+#' grey.
+#'
+#' @references \url{https://raw.githubusercontent.com/mrbilltran/the-win-column/master/nhl_rink_plot.R}
+#' @author Bill Tran (for `nhl_rink_plot()`)
+#' @examples
+#' nhl_rink_plot()
+#'
+#' if (rlang::is_installed("dplyr")) {
+#'   library(dplyr)
+#'   library(ggplot2)
+#'
+#'   set.seed(1)
+#'   small_data <- on_goal %>% sample_n(500)
+#'
+#'   small_data %>% filter(distance < 20) %>% plot_nhl_shots()
+#'
+#'   small_data %>% filter(distance < 50) %>% plot_nhl_shots(alpha = 1/2)
+#'
+#'   small_data %>%
+#'     plot_nhl_shots(emphasis = on_goal, cex = 2, alpha = 1/2) +
+#'     scale_color_brewer(palette = "Dark2")
+#' }
+#'
+#'
 #' @export
-plot_nhl_shots <- function(x, group = NULL, symbols = NULL, ...) {
-  grp_chr <- as.character(match.call()$group)
-  if (identical(grp_chr, character(0))) {
-    grp_chr <- "on_goal"
-    group <- rlang::sym("on_goal")
-    if (is.null(symbols)) {
-      symbols <- c(yes = 1, no = 4)
-    }
+plot_nhl_shots <- function(x, ..., emphasis = NULL) {
+  if (!all(c("coord_x", "coord_y") %in% names(x))) {
+    rlang::abort("data argument 'x' must have columns 'coord_x' and 'coord_y'.")
   }
-  if (!is.factor(x[[grp_chr]])) {
-    rlang::abort("The grouping factor should be a factor")
-  }
-  if (!is.null(symbols)) {
-    # check the names
-    if (!identical(levels(x[[grp_chr]]), names(symbols))) {
-      rlang::abort("The levels of the grouping function should be the names in `symbols`")
+
+  p <- nhl_rink_plot(
+    NHL_red = grDevices::rgb(0, 0, 0, 0.2),
+    NHL_blue = grDevices::rgb(0, 0, 0, 0.2),
+    NHL_light_blue = grDevices::rgb(0, 0, 0, 0.2)
+  )
+
+  if (is.null(match.call()$emphasis)) {
+    p <- p + ggplot2::geom_point(
+      data = x,
+      ggplot2::aes(x = coord_x, y = coord_y),
+      ...
+    )
+  } else {
+    group_data <- x %>% dplyr::select({{emphasis}}) %>% purrr::pluck(1)
+    is_cat <- is.factor(group_data) || is.character(group_data)
+    if (is_cat) {
+      p <- p + ggplot2::geom_point(
+        data = x,
+        ggplot2::aes(x = coord_x, y = coord_y, col = {{emphasis}}, pch = {{emphasis}}),
+        ...
+      )
+    } else {
+      p <- p + ggplot2::geom_point(
+        data = x,
+        ggplot2::aes(x = coord_x, y = coord_y, col = {{emphasis}}),
+        ...
+      )
     }
   }
 
-  p <- nhl_rink_plot() +
-    ggplot2::geom_point(
-      data = x,
-      ggplot2::aes(x = coord_x, y = coord_y, col = {{group}}, pch = {{group}}),
-      ...
-    )
-  if (!is.null(symbols)) {
-    p <- p + ggplot2::scale_shape_manual(values = symbols)
-  }
   p
 }
 
+utils::globalVariables(c("coord_x", "coord_y"))
 
-nhl_rink_plot <- function (NHL_red = rgb(0, 0, 0, .2), NHL_blue = rgb(0, 0, 0, .2), NHL_light_blue = rgb(0, 0, 0, .2)) {
+#' @export
+#' @rdname plot_nhl_shots
+#' @param NHL_red,NHL_blue,NHL_light_blue Suggested colors for various rink elements.
+# original from https://raw.githubusercontent.com/mrbilltran/the-win-column/master/nhl_rink_plot.R
+nhl_rink_plot <- function (NHL_red = "#FFCCD8", NHL_blue = "#CCE1FF", NHL_light_blue = "#CCF5FF") {
 
   # Plotting an NHL rink completely following the NHL rule book:
   # https://cms.nhl.bamgrid.com/images/assets/binary/308893668/binary-file/file.pdf
@@ -53,8 +100,8 @@ nhl_rink_plot <- function (NHL_red = rgb(0, 0, 0, .2), NHL_blue = rgb(0, 0, 0, .
     ggforce::geom_circle(ggplot2::aes(x0 = -69, y0 = 22, r = 15), colour = NHL_red, size = 2 / 12) + # Top-Left
     ggforce::geom_circle(ggplot2::aes(x0 = -69, y0 = -22, r = 15), colour = NHL_red, size = 2 / 12) + # Bottom-Left
 
-  # Centre line
-  ggplot2::geom_tile(ggplot2::aes(x = 0, y = 0, width = 1, height = 85), fill = NHL_red) + # Centre line
+    # Centre line
+    ggplot2::geom_tile(ggplot2::aes(x = 0, y = 0, width = 1, height = 85), fill = NHL_red) + # Centre line
 
     # Faceoff dots - Plot AFTER centre lines for centre ice circle to show up above
     ggforce::geom_circle(ggplot2::aes(x0 = 0, y0 = 0, r = 6 / 12), colour = NHL_red, fill = NHL_red, size = 0) + # Centre dot with unique red
@@ -68,8 +115,8 @@ nhl_rink_plot <- function (NHL_red = rgb(0, 0, 0, .2), NHL_blue = rgb(0, 0, 0, .
     ggforce::geom_circle(ggplot2::aes(x0 = -20.5, y0 = 22, r = 1), colour = NHL_red, fill = NHL_red, size = 0) + # Neutral Top-Left
     ggforce::geom_circle(ggplot2::aes(x0 = -20.5, y0 = -22, r = 1), colour = NHL_red, fill = NHL_red, size = 0) + # Neutral Bottom-Left
 
-  # Left goalie crease
-  ggplot2::geom_tile(ggplot2::aes(x = -86.75, y = 0, width = 4.5, height = 8), fill = NHL_light_blue) +
+    # Left goalie crease
+    ggplot2::geom_tile(ggplot2::aes(x = -86.75, y = 0, width = 4.5, height = 8), fill = NHL_light_blue) +
     ggforce::geom_arc_bar(ggplot2::aes(x0 = -89, y0 = 0, start = atan(4.5/4) - 0.01, end = pi - atan(4.5 / 4) + 0.01, r0 = 4, r = 6), fill = NHL_light_blue, colour = NHL_light_blue, size = 1 / 12) + # manually adjusted arc
     ggplot2::geom_tile(ggplot2::aes(x = -86.75, y = -4, width = 4.5, height = 2 / 12), fill = NHL_red) +
     ggplot2::geom_tile(ggplot2::aes(x = -86.75, y = 4, width = 4.5, height = 2 / 12), fill = NHL_red) +

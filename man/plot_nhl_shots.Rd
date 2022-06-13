@@ -2,20 +2,70 @@
 % Please edit documentation in R/rink-plot.R
 \name{plot_nhl_shots}
 \alias{plot_nhl_shots}
+\alias{nhl_rink_plot}
 \title{Plot a hockey rink and add data}
 \usage{
-plot_nhl_shots(x, group = on_goal, symbols = c(yes = 1, no = 4))
+plot_nhl_shots(x, ..., emphasis = NULL)
+
+nhl_rink_plot(
+  NHL_red = "#FFCCD8",
+  NHL_blue = "#CCE1FF",
+  NHL_light_blue = "#CCF5FF"
+)
 }
 \arguments{
-\item{group}{A factor column to color and shape the data points.}
+\item{x}{data frame of data (should include a columns called \code{coord_x} and
+\code{coord_y}).}
 
-\item{symbols}{A named vector of symbol numbers for the plot (or NULL).}
+\item{...}{Options to pass to \code{\link[ggplot2:geom_point]{ggplot2::geom_point()}}. If \code{emphasis} is a
+string or factor, the \code{col} and \code{pch} aesthetics are already set and if
+\code{emphasis} is numeric, only \code{col} is set.}
 
-\item{a}{data frame of data (should include a column called \code{on_goal}).}
+\item{emphasis}{A column in \code{x} to color (and shape if factor) the data points.
+If this argument is used, it must be named and cannot use in-line functions
+(e.g. \code{emphasis = log(distance)}).}
+
+\item{NHL_red, NHL_blue, NHL_light_blue}{Suggested colors for various rink elements.}
 }
 \value{
-A ggplot object
+A ggplot object.
 }
 \description{
 Plot a hockey rink and add data
+}
+\details{
+\code{\link[=nhl_rink_plot]{nhl_rink_plot()}} plots most elements of the rink. Code to plot all can be
+found in the GitHub link in the References.
+
+\code{\link[=plot_nhl_shots]{plot_nhl_shots()}} overlays the rink plot with points in \code{x}. If \code{emphasis} is
+given and is factor or character, the color and shape of the points are set.
+Otherwise, only the color is set. This function also sets the rink colors to
+grey.
+}
+\examples{
+nhl_rink_plot()
+
+if (rlang::is_installed("dplyr")) {
+  library(dplyr)
+  library(ggplot2)
+
+  set.seed(1)
+  small_data <- on_goal \%>\% sample_n(500)
+
+  small_data \%>\% filter(distance < 20) \%>\% plot_nhl_shots()
+
+  small_data \%>\% filter(distance < 50) \%>\% plot_nhl_shots(alpha = 1/2)
+
+  small_data \%>\%
+    plot_nhl_shots(emphasis = on_goal, cex = 2, alpha = 1/2) +
+    scale_color_brewer(palette = "Dark2")
+}
+
+
+}
+\references{
+\url{https://raw.githubusercontent.com/mrbilltran/the-win-column/master/nhl_rink_plot.R}
+}
+\author{
+Bill Tran (for \code{nhl_rink_plot()})
 }
