@@ -3,14 +3,17 @@
 \docType{data}
 \name{on_goal}
 \alias{on_goal}
+\alias{season_2015}
 \title{Shots on goal data}
 \value{
-\item{on_goal}{a tibble}
+\item{on_goal,season_2015}{a tibble}
 }
 \description{
 These data are for Pittsburgh Penguins games (seasons 2015-2016, 2016-2017,
 and 2017-2018). Shots were determined to be on goal (i.e., made it to the
 goaltender) or not (i.e., missed or blocked).
+
+\code{season_2015} contains data from a single season.
 }
 \examples{
 str(on_goal)
