@@ -9,6 +9,9 @@
 experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
 [![CRAN
 status](https://www.r-pkg.org/badges/version/ongoal)](https://CRAN.R-project.org/package=ongoal)
+[![Codecov test
+coverage](https://codecov.io/gh/topepo/ongoal/branch/main/graph/badge.svg)](https://app.codecov.io/gh/topepo/ongoal?branch=main)
+[![R-CMD-check](https://github.com/topepo/ongoal/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/topepo/ongoal/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
 ongoal makes 35572 data points available for Pittsburgh Penguins games
