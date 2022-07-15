@@ -5,12 +5,13 @@
 \alias{nhl_rink_plot}
 \title{Plot a hockey rink and add data}
 \usage{
-plot_nhl_shots(x, ..., emphasis = NULL)
+plot_nhl_shots(x, ..., emphasis = NULL, upward = FALSE)
 
 nhl_rink_plot(
   NHL_red = "#FFCCD8",
   NHL_blue = "#CCE1FF",
-  NHL_light_blue = "#CCF5FF"
+  NHL_light_blue = "#CCF5FF",
+  upward = FALSE
 )
 }
 \arguments{
@@ -24,6 +25,10 @@ string or factor, the \code{col} and \code{pch} aesthetics are already set and i
 \item{emphasis}{A column in \code{x} to color (and shape if factor) the data points.
 If this argument is used, it must be named and cannot use in-line functions
 (e.g. \code{emphasis = log(distance)}).}
+
+\item{upward}{A logical indicating whether the plot should be have center ice
+at the bottom and the goal near the top. The default is center ice on the left
+and the goal on the right.}
 
 \item{NHL_red, NHL_blue, NHL_light_blue}{Suggested colors for various rink elements.}
 }
