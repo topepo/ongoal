@@ -152,8 +152,7 @@ nhl_rink_plot <- function (NHL_red = "#FFCCD8", NHL_blue = "#CCE1FF", NHL_light_
       axis.ticks.y = ggplot2::element_blank(),
       panel.grid.major = ggplot2::element_blank(),
       panel.grid.minor = ggplot2::element_blank(),
-      panel.border = ggplot2::element_blank(),
-      aspect.ratio = 1
+      panel.border = ggplot2::element_blank()
     )
 
   if (upward) {
