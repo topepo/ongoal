@@ -46,6 +46,24 @@ library(ongoal)
 str(on_goal)
 ```
 
+There's also a visualization function (based on [Bill Tran's function](https://raw.githubusercontent.com/mrbilltran/the-win-column/master/nhl_rink_plot.R)):
+
+```{r rink}
+suppressPackageStartupMessages(library(dplyr))
+set.seed(1)
+on_goal %>% 
+  filter(abs(angle) < 20 & distance < 40) %>% 
+  sample_n(500) %>% 
+  plot_nhl_shots(emphasis = on_goal, alpha = 1 / 2)
+
+```
+
+## Future plans
+
+I might make a different version of the data and plotting function that use the absolute x coordinate so that we only have to plot half the rink. 
+
+
+
 ## Code of Conduct
   
 Please note that the ongoal project is released with a [Contributor Code of Conduct](https://contributor-covenant.org/version/2/0/CODE_OF_CONDUCT.html). By contributing to this project, you agree to abide by its terms.
