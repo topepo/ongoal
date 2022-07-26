@@ -19,6 +19,7 @@ Imports:
     purrr,
     rlang
 Suggests:
+    covr,
     dplyr,
     testthat (>= 3.0.0)
 Config/testthat/edition: 3

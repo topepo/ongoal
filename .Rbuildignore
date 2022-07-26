@@ -4,3 +4,8 @@
 ^README\.Rmd$
 ^cran-comments\.md$
 ^CODE_OF_CONDUCT\.md$
+^_pkgdown\.yml$
+^docs$
+^pkgdown$
+^codecov\.yml$
+^\.github$

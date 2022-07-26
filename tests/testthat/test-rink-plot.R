@@ -1,5 +1,6 @@
 test_that("rink plots", {
   skip_on_os("windows")
+  skip_on_os("linux")
   skip_if_not_installed("dplyr")
 
   # ----------------------------------------------------------------------------
