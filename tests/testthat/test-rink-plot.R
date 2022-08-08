@@ -45,7 +45,7 @@ test_that("rink plots", {
 
   expect_snapshot_file(
     save_png(
-      small_data %>% plot_nhl_shots(emphasis = position) %>% print(),
+      small_data %>% plot_nhl_shots(emphasis = shooter_type) %>% print(),
       "qual-data-plot.png"
     ),
     name = "qual-data-plot.png"

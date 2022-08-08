@@ -9,11 +9,60 @@
 \item{on_goal,season_2015}{a tibble}
 }
 \description{
-These data are for Pittsburgh Penguins games (seasons 2015-2016, 2016-2017,
-and 2017-2018). Shots were determined to be on goal (i.e., made it to the
-goaltender) or not (i.e., missed or blocked).
+These data are for Pittsburgh Penguins regular season games (seasons
+2015-2016, 2016-2017, and 2017-2018). Shots were determined to be on goal
+(i.e., made it to the goaltender) or not (i.e., missed or blocked).
 
 \code{season_2015} contains data from a single season.
+}
+\details{
+The full set of columns are:
+\itemize{
+\item \code{season}: A factor with 3 levels: '20152016', '20162017', '20172018'.
+\item \code{game_id}, \code{event_idx}: Index columns for NHL database
+\item \code{date_time}: Data/time of event
+\item \code{event}: A factor with 4 levels: 'Blocked Shot', 'Goal', 'Missed Shot',
+'Shot'.
+\item \code{on_goal}: A factor with 2 levels: 'yes', 'no'. An on-goal shot is either
+a goal or a shot (from the \code{event} column).
+\item \code{period}: (integer) Which of the three regular season periods that the shot
+was taken.
+\item \code{game_seconds}: (double) Cumulative time for the shot.
+\item \code{strength}: A factor with 3 levels: 'even', 'power_play', 'shorthanded'.
+Even means that the teams have equal number of players (which may not be
+five). A power play is when the shooting team has more players and
+short-handed is when the defensive team (with fewer players).
+\item \code{strength_state}: A factor with 15 levels with format \verb{#v#}. For example,
+"3v5" means the attacking team has three players on the ice and the
+defending team has five.
+\item \code{extra_attacker}: (double) How many more players are on-ice for the
+attacking team?
+\item \code{home_skaters}, \code{away_skaters}: (double) How many players and on-ice.
+\item \code{goaltender}: A factor with 78 levels. Name of the current goalie.
+\item \code{goal_difference}: (double) The difference between the current score of the
+attacking team minus the score of the defending team.
+\item \code{shooter}: A factor with 913 levels. Name of the attacking player.
+\item \code{shooter_team}: A factor with 31 levels. Attacking team.
+\item \code{shooter_nationality}: A factor with 19 levels.
+\item \code{shooter_position}: A factor with 5 levels: 'center', 'defenseman',
+'goalie', 'left_wing', or 'right_wing'.
+\item \code{coord_x}, \code{coord_y}: (double) Location of the event (shot or blocked
+shot). Center ice is a \verb{(0, 0)} so negative x values are on the left and
+positive \code{y} values are on top. The data are configured so that the
+attacking team is always shooting at the right-hand goal. Note that
+there are not \emph{shot} locations for blocked shots; these are where the
+blocking player was located.
+\item \code{angle}: (double) The angle of the event (0 to 180 degrees) to the center
+of the goal. For blocked shots, this is the angle to the blocking player
+(which should approximate shot angle well).
+\item \code{distance}: (double) The minimum distance from the event to the right-hand
+goal (located at \verb{(89, 0)}). We say \emph{minimum} because, for blocked shots,
+it is the distance from the blocking player to the center of the goal.
+\item \code{behind_goal_line}: (double) For the event, was \code{x > 89}?
+}
+
+The \code{season_2015} version has fewer columns and different factor levels for
+the player columns (it is used for teaching).
 }
 \examples{
 str(on_goal)
