@@ -50,18 +50,11 @@ There's also a visualization function (based on [Bill Tran's function](https://r
 
 ```{r rink}
 suppressPackageStartupMessages(library(dplyr))
-set.seed(1)
+set.seed(12)
 on_goal %>% 
-  filter(abs(angle) < 20 & distance < 40) %>% 
-  sample_n(500) %>% 
-  plot_nhl_shots(emphasis = on_goal, alpha = 1 / 2)
-
+    filter(abs(angle) < 10 & distance < 80) %>% 
+    plot_nhl_shots(emphasis = on_goal, alpha = 1 / 2)
 ```
-
-## Future plans
-
-I might make a different version of the data and plotting function that use the absolute x coordinate so that we only have to plot half the rink. 
-
 
 
 ## Code of Conduct
