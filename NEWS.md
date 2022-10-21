@@ -1,3 +1,7 @@
+# ongoal 0.0.4
+
+Data refresh after some changes to the hockeyR package. 
+
 # ongoal 0.0.3
 
 New version using the hockeyR package. 
