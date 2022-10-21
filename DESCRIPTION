@@ -1,6 +1,6 @@
 Package: ongoal
 Title: NHL Data for Shots on Goal
-Version: 0.0.3
+Version: 0.0.4
 Authors@R: c(
     person("Max", "Kuhn", , "mxkuhn@gmail.com", role = c("cre", "aut"),
            comment = c(ORCID = "0000-0003-2402-136X")),

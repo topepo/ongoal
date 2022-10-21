@@ -1,0 +1,383 @@
+
+R version 4.2.0 (2022-04-22) -- "Vigorous Calisthenics"
+Copyright (C) 2022 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin17.0 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> # pak::pak(c("danmorse314/hockeyR"), ask = FALSE)
+> 
+> library(hockeyR)
+> library(nhlapi) # for player position
+> library(tidyverse)
+── Attaching packages ─────────────────────────────────────── tidyverse 1.3.1 ──
+✔ ggplot2 3.3.6      ✔ purrr   0.3.5 
+✔ tibble  3.1.8      ✔ dplyr   1.0.10
+✔ tidyr   1.2.1      ✔ stringr 1.4.1 
+✔ readr   2.1.3      ✔ forcats 0.5.1 
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+> library(tidylog, warn.conflicts = FALSE)
+> library(sessioninfo)
+> library(usethis)
+> 
+> # ------------------------------------------------------------------------------
+> 
+> play_by_play <- bind_rows(load_pbp('2015-16'), load_pbp('2016-17'), load_pbp('2017-18'))
+> 
+> # ------------------------------------------------------------------------------
+> 
+> clean_values <- function(x) {
++   x <- gsub("([[:punct:]])|([[:space:]])", "_", tolower(x))
++   x <- gsub("__", "_", x) # for names with dot them space
++   x
++ }
+> 
+> # ------------------------------------------------------------------------------
+> # Basic filtering of events and teams along with some simple feature creation or
+> # engineering
+> 
+> shots <-
++   play_by_play  %>%
++   # Filter for shot-related events
++   filter(event %in% c("Shot", "Blocked Shot", "Missed Shot", "Goal")) %>%
++   # Remove 0v0 and 0v5 ¯\_(ツ)_/¯
++   filter(!grepl("^0v", strength_state)) %>%
++   # Remove pre-season games and overtime shots
++   filter(period_type == "REGULAR" & season_type == "R") %>% 
++   select(
++     event, event_team_type, event_team_abbr, period, game_seconds, 
++     home_score, away_score,
++     # The event_player_* cols will be used to get info on the shooter
++     starts_with("event_player_"), -ends_with("_link"),  -ends_with("_season_total"),
++     strength, strength_state, extra_attacker, empty_net,
++     x_fixed, y_fixed, home_skaters, away_skaters, ends_with("_goalie"),
++     date_time, event_team_abbr, season, event_idx, game_id
++   ) %>% 
++   relocate(season, game_id, event_idx, date_time)
+filter: removed 794,798 rows (63%), 458,580 rows remaining
+filter: removed 2,247 rows (<1%), 456,333 rows remaining
+filter: removed 37,794 rows (8%), 418,539 rows remaining
+select: dropped 76 variables (xg, event_id, event_type, secondary_type, event_team, …)
+relocate: columns reordered (season, game_id, event_idx, date_time, event, …)
+> 
+> # Filter data down via including games played by PIT
+> pit_playing <-
++   shots %>%
++   group_by(season, game_id) %>%
++   summarize(has_pit = any(event_team_abbr == "PIT"), .groups = "drop") %>% 
++   filter(has_pit) %>%
++   select(-has_pit)
+group_by: 2 grouping variables (season, game_id)
+summarize: now 3,731 rows and 3 columns, ungrouped
+filter: removed 3,485 rows (93%), 246 rows remaining
+select: dropped one variable (has_pit)
+> 
+> team_info <-
++   shots %>%
++   # Next line to tie shooter to team; see notes on blocked shots below
++   filter(event == "Shot") %>% 
++   group_by(season, game_id) %>%
++   dplyr::distinct(event_team_type, event_team_abbr) %>%
++   pivot_wider(
++     id_cols = c(season, game_id),
++     names_from = event_team_type,
++     values_from = event_team_abbr
++   ) %>% 
++   ungroup()
+filter: removed 213,693 rows (51%), 204,846 rows remaining
+group_by: 2 grouping variables (season, game_id)
+pivot_wider: reorganized (event_team_type, event_team_abbr) into (home, away) [was 7462x4, now 3731x4]
+ungroup: no grouping variables
+> 
+> pit_playing <- inner_join(pit_playing, team_info, by = c("season", "game_id"))
+inner_join: added 2 columns (home, away)
+            > rows only in x  (    0)
+            > rows only in y  (3,485)
+            > matched rows       246
+            >                 =======
+            > rows total         246
+> 
+> pit_shots <- 
++   left_join(pit_playing, shots, by = c("season", "game_id")) %>% 
++   mutate(
++     # 'event_team_abbr' is the defensive team for a blocked shot. 
++     # If that is the case, switch the team (as well as 'event_team_type')
++     other_team = ifelse(event_team_abbr == away, home, away),
++     event_team_abbr = ifelse(event == "Blocked Shot", other_team, event_team_abbr),
++     other_type = ifelse(event_team_type == "away", "home", "away"),
++     event_team_type = ifelse(event == "Blocked Shot", other_type, event_team_type),
++     
++     # Convert logical to binary indicator
++     extra_attacker = ifelse(extra_attacker, 1, 0),
++     
++     # Assign no goaltender when an empty net
++     empty_net = isTRUE(empty_net),
++     away_goalie = ifelse(is.na(away_goalie) & empty_net, "none", away_goalie),
++     home_goalie = ifelse(is.na(home_goalie) & empty_net, "none", home_goalie),
++     
++     # Determine goaltender from opposite team as event. There is a fair amount
++     # of missing data here for some games. See the code below where we use the
++     # 'event_player_*' columns to try to get the data when these two columns
++     # are missing. 
++     goaltender = ifelse(event_team_type == "home", away_goalie, home_goalie),
++ 
++     # Make a column for goal differential between offense and defense team
++     goal_difference = ifelse(event_team_type == "away", 
++                              away_score - home_score, 
++                              home_score - away_score),
++     
++     # Binary outcome
++     on_goal = ifelse(event %in% c("Shot", "Goal"), "yes", "no"),
++     on_goal = factor(on_goal, levels = c("yes", "no"))
++   ) %>% 
++   rename(shooter_team = event_team_abbr, team_away = away, team_home = home) %>% 
++   select(-other_team, -other_type, -away_score, -home_score) %>% 
++   relocate(event, on_goal, .after = date_time)
+left_join: added 31 columns (event_idx, date_time, event, event_team_type, event_team_abbr, …)
+           > rows only in x         0
+           > rows only in y  (390,454)
+           > matched rows      28,085    (includes duplicates)
+           >                 =========
+           > rows total        28,085
+mutate: changed 7,040 values (25%) of 'event_team_type' (0 new NA)
+        changed 7,040 values (25%) of 'event_team_abbr' (0 new NA)
+        converted 'extra_attacker' from logical to double (0 new NA)
+        changed 26,715 values (95%) of 'empty_net' (26658 fewer NA)
+        new variable 'other_team' (character) with 31 unique values and 0% NA
+        new variable 'other_type' (character) with 2 unique values and 0% NA
+        new variable 'goaltender' (character) with 78 unique values and 2% NA
+        new variable 'goal_difference' (double) with 19 unique values and 0% NA
+        new variable 'on_goal' (factor) with 2 unique values and 0% NA
+rename: renamed 3 variables (team_home, team_away, shooter_team)
+select: dropped 4 variables (home_score, away_score, other_team, other_type)
+relocate: columns reordered (season, game_id, team_home, team_away, event_idx, …)
+> 
+> # ------------------------------------------------------------------------------
+> # Get shooter name and position. Also get goaltender info to replace missing 
+> # values of 'away_goalie' or 'home_goalie'
+> 
+> players <-
++   pit_shots %>%
++   select(event_idx, game_id, season, starts_with("event_player_")) %>%
++   # have to convert integer player ID to character :-O
++   mutate(across(c(starts_with("event_player_")), ~ as.character(.x))) %>%
++   pivot_longer(
++     c(starts_with("event_player_")),
++     names_to = c("col"),
++     values_to = "data"
++   ) %>%
++   mutate(
++     event_index = gsub("([[:alpha:]])|([[:punct:]])", "", col),
++     col = gsub("event_player_(.*)_", "", col)
++   ) %>%
++   pivot_wider(
++     id_cols = c(season, game_id, event_idx, event_index),
++     names_from = col,
++     values_from = data
++   ) %>%
++   filter(!is.na(name))
+select: dropped 21 variables (team_home, team_away, date_time, event, on_goal, …)
+mutate: converted 'event_player_1_id' from integer to character (0 new NA)
+        converted 'event_player_2_id' from integer to character (0 new NA)
+        converted 'event_player_3_id' from integer to character (0 new NA)
+        converted 'event_player_4_id' from integer to character (0 new NA)
+pivot_longer: reorganized (event_player_1_name, event_player_1_type, event_player_2_name, event_player_2_type, event_player_3_name, …) into (col, data) [was 28085x15, now 337020x5]
+mutate: changed 337,020 values (100%) of 'col' (0 new NA)
+        new variable 'event_index' (character) with 4 unique values and 0% NA
+pivot_wider: reorganized (col, data) into (name, type, id) [was 337020x6, now 112340x7]
+filter: removed 59,137 rows (53%), 53,203 rows remaining
+> 
+> shooter <- 
++   players %>%
++   filter(type %in%  c("Shooter", "Scorer")) %>%
++   mutate(
++     name = clean_values(name),
++     id = as.integer(id)
++   ) %>%
++   select(season, game_id, event_idx, shooter = name, shooter_id = id)
+filter: removed 25,118 rows (47%), 28,085 rows remaining
+mutate: changed 28,085 values (100%) of 'name' (0 new NA)
+        converted 'id' from character to integer (0 new NA)
+select: renamed 2 variables (shooter, shooter_id) and dropped 2 variables
+> 
+> goalie <- 
++   players %>%
++   filter(type == "Goalie") %>%
++   select(season, game_id, event_idx, event_goalie = name)
+filter: removed 37,568 rows (71%), 15,635 rows remaining
+select: renamed one variable (event_goalie) and dropped 3 variables
+> 
+> 
+> # use nhlapi to get shooter position
+> 
+> shooter_ids <-
++   shooter %>%
++   dplyr::distinct(shooter_id) %>%
++   pluck("shooter_id")
+> 
+> shooter_type <-
++   nhl_players(playerIds = shooter_ids) %>%
++   mutate(shooter_type = gsub(" ", "_", tolower(primaryPosition.name))) %>%
++   select(shooter_id = id, shooter_nationality = nationality, shooter_type) %>%
++   filter(!is.na(shooter_type))
+mutate: new variable 'shooter_type' (character) with 5 unique values and 0% NA
+select: renamed 2 variables (shooter_id, shooter_nationality) and dropped 27 variables
+filter: no rows removed
+> 
+> shooter_with_position <-
++   inner_join(shooter, shooter_type, by = "shooter_id") %>%
++   select(-shooter_id)
+inner_join: added 2 columns (shooter_nationality, shooter_type)
+            > rows only in x  (     0)
+            > rows only in y  (     0)
+            > matched rows     28,085
+            >                 ========
+            > rows total       28,085
+select: dropped one variable (shooter_id)
+> 
+> with_shooter <-
++   pit_shots %>%
++   left_join(shooter_with_position, by = c("season", "game_id", "event_idx")) %>%
++   select(-starts_with("event_player_")) %>% 
++   # There are a handful of rows without shooter info
++   filter(!is.na(shooter)) %>% 
++   relocate(shooter_team, .after = shooter)
+left_join: added 3 columns (shooter, shooter_nationality, shooter_type)
+           > rows only in x        0
+           > rows only in y  (     0)
+           > matched rows     28,085
+           >                 ========
+           > rows total       28,085
+select: dropped 12 variables (event_player_1_name, event_player_1_type, event_player_2_name, event_player_2_type, event_player_3_name, …)
+filter: no rows removed
+relocate: columns reordered (season, game_id, team_home, team_away, event_idx, …)
+> 
+> with_goalie <-
++   with_shooter %>% 
++   left_join(goalie, by = c("season", "game_id", "event_idx")) %>% 
++   mutate(
++     goaltender = ifelse(is.na(goaltender) & !is.na(event_goalie), event_goalie, goaltender),
++     goaltender = clean_values(goaltender)
++   )
+left_join: added one column (event_goalie)
+           > rows only in x   12,450
+           > rows only in y  (     0)
+           > matched rows     15,635
+           >                 ========
+           > rows total       28,085
+mutate: changed 27,684 values (99%) of 'goaltender' (215 fewer NA)
+> 
+> # ------------------------------------------------------------------------------
+> # Make all shots on right-hand goal. From hockeyR docs: "x_fixed: Numeric 
+> # transformed x-coordinate of event in feet, where the home team always shoots 
+> # to the right, away team to the left." 
+> 
+> left_to_right <- 
++   with_goalie %>% 
++   mutate(
++     coord_x = ifelse(event_team_type == "away", -x_fixed, x_fixed),
++     coord_y = ifelse(event_team_type == "away", -y_fixed, y_fixed)
++   )
+mutate: new variable 'coord_x' (double) with 193 unique values and <1% NA
+        new variable 'coord_y' (double) with 85 unique values and <1% NA
+> 
+> # ------------------------------------------------------------------------------
+> 
+> on_goal <- 
++   left_to_right %>% 
++   select(-x_fixed, -y_fixed, -event_team_type) %>% 
++   mutate(
++     strength = clean_values(strength),
++     shooter = clean_values(shooter),
++     across(where(is.character), as.factor),
++     angle = abs( atan2(abs(coord_y), (89 - coord_x) ) * (180 / pi)),
++     distance = sqrt( (89 - coord_x) ^ 2 + coord_y ^ 2 ), 
++     behind_goal_line = ifelse(coord_x >= 89, 1, 0)
++   ) %>% 
++   select(-team_home, -team_away, -empty_net, -home_goalie, -away_goalie, 
++          -event_goalie)
+select: dropped 3 variables (event_team_type, x_fixed, y_fixed)
+mutate: converted 'season' from character to factor (0 new NA)
+        converted 'team_home' from character to factor (0 new NA)
+        converted 'team_away' from character to factor (0 new NA)
+        converted 'event_idx' from character to factor (0 new NA)
+        converted 'date_time' from character to factor (0 new NA)
+        converted 'event' from character to factor (0 new NA)
+        converted 'strength' from character to factor (0 new NA)
+        converted 'strength_state' from character to factor (0 new NA)
+        converted 'home_goalie' from character to factor (0 new NA)
+        converted 'away_goalie' from character to factor (0 new NA)
+        converted 'goaltender' from character to factor (0 new NA)
+        converted 'shooter' from character to factor (0 new NA)
+        converted 'shooter_team' from character to factor (0 new NA)
+        converted 'shooter_nationality' from character to factor (0 new NA)
+        converted 'shooter_type' from character to factor (0 new NA)
+        converted 'event_goalie' from character to factor (0 new NA)
+        new variable 'angle' (double) with 2,790 unique values and <1% NA
+        new variable 'distance' (double) with 3,039 unique values and <1% NA
+        new variable 'behind_goal_line' (double) with 3 unique values and <1% NA
+select: dropped 6 variables (team_home, team_away, empty_net, home_goalie, away_goalie, …)
+> 
+> 
+> on_goal <- on_goal[complete.cases(on_goal), ]
+> 
+> # ------------------------------------------------------------------------------
+> # Smaller version used for teaching
+> 
+> retain <-
++   c("on_goal", "period", "game_seconds", "strength", "home_skaters",
++     "away_skaters", "goaltender", "goal_difference", "shooter", "shooter_type",
++     "coord_x", "coord_y", "extra_attacker")
+> 
+> season_2015 <-
++   on_goal %>%
++   filter(season == "20152016") %>%
++   select(all_of(retain)) %>%
++   dplyr::mutate(
++     shooter = factor(as.character(shooter)),
++     goaltender = factor(as.character(goaltender))
++   )
+filter: removed 18,767 rows (68%), 8,915 rows remaining
+select: dropped 11 variables (season, game_id, event_idx, date_time, event, …)
+> 
+> use_data(
++   on_goal,
++   version = 3,
++   overwrite = TRUE,
++   compress = TRUE
++ )
+✔ Setting active project to '/Users/max/github/ongoal'
+✔ Saving 'on_goal' to 'data/on_goal.rda'
+• Document your data (see 'https://r-pkgs.org/data.html')
+> 
+> use_data(
++   season_2015,
++   version = 3,
++   overwrite = TRUE,
++   compress = TRUE
++ )
+✔ Saving 'season_2015' to 'data/season_2015.rda'
+• Document your data (see 'https://r-pkgs.org/data.html')
+> 
+> # ------------------------------------------------------------------------------
+> 
+> if (!interactive()) {
++   q("no")
++ }
+> proc.time()
+   user  system elapsed 
+ 41.097   2.987 114.436 
